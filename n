@@ -1,0 +1,85 @@
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
+import sqlite3
+
+# Ваш токен бота
+TOKEN = '7650228237:AAFEeIjY8YSEjlhNExxGgiS8t2nz4j7kgEc'
+# URL вашего WebApp
+WEB_APP_URL = 'https://coin-dusky-psi.vercel.app/'
+
+conn = sqlite3.connect('db/neymark.db')
+cursor = conn.cursor()
+
+async def send_welcome_message(update: Update, username: str) -> None:
+    message = (
+        f'Здравствуйте, {username}, чем могу быть полезен? '
+    )
+    await update.message.reply_text(message, parse_mode='HTML')
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    username = update.effective_user.first_name
+    await send_welcome_message(update, username)
+    keyboard = [
+        ['Получить опрос 📋'],
+        ['Профиль 👤'],
+        ['Получить приз 🎁'],
+        [InlineKeyboardButton("Lets go ☀️", web_app={"url": WEB_APP_URL})]
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard[:-1], resize_keyboard=True)  # Обычные кнопки
+    await update.message.reply_text('Выберите действие:', reply_markup=reply_markup)
+    inline_keyboard = [[InlineKeyboardButton("Lets go ☀️", web_app={"url": WEB_APP_URL})]]
+    inline_reply_markup = InlineKeyboardMarkup(inline_keyboard)
+
+    await update.message.reply_text('Выберите действие:', reply_markup=inline_reply_markup)
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_message = update.message.text
+    usernames = update.effective_user.username
+
+    if user_message == 'Получить опрос 📋':
+        username2 = update.effective_user.username
+        reg = 'SELECT * FROM neymark WHERE username1 = ?'
+        cursor.execute(reg, (usernames,))
+        data = cursor.fetchone()
+        if data is None:
+            FIO = ''
+            city = ''
+            await update.message.reply_text(f'Вижу что вы не зарегистрированы. Давайте зарегистрируемся')
+            await update.message.reply_text(f'Введите ваше ФИО:')
+            register = 0
+        else:
+            await update.message.reply_text(f'Сейчас сгенерируется опрос')
+        while register == 0:
+            if user_message != 'Получить опрос 📋':
+                FIO = user_message
+                await update.message.reply_text(f'В каком городе вы живёте:')
+                if user_message != FIO and user_message != 'Получить опрос 📋':
+                    city = user_message
+                    cursor.execute('INSERT INTO neymark (FIO, city, username1) VALUES (?,?,?)', (FIO, city, usernames))
+                    conn.commit()
+                    await update.message.reply_text(f'Регистрация прошла успешно')
+                    register += 1
+
+    if user_message == 'Профиль 👤':
+            await update.message.reply_text(f'Вижу что вы не зарегистрированы. Давайте зарегистрируемся')
+            await update.message.reply_text(f'Введите ваше ФИО:')
+            FIO = user_message
+            if FIO != 'Профиль 👤' and FIO != '':
+                FIO = user_message
+                await update.message.reply_text(f'Введите вашу дату рождения:')
+                age = user_message
+                if age != 'Профиль 👤' and age != '':
+                    age = user_message
+                    await update.message.reply_text(f'Введите ваш род деятельности:')
+                    do = user_message
+                    if do != 'Профиль 👤' and do != '':
+                        do = user_message
+def main() -> None:
+    application = ApplicationBuilder().token(TOKEN).build()
+    application.add_handler(CommandHandler('start', start))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, button_handler))
+    application.run_polling()
+
+if __name__ == '__main__':
+    main()
